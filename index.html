@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="script.js">
+    </head>
+    <body>
+    
+	<button class="add-btn">
+		<span class="sr-only">Add</span>
+	</button>
+
+	<template id="card">
+		<li class="card">
+		<button class="delete-btn">
+		  <span class="sr-only">Delete</span>
+		</button>
+	  </li>
+	</template>
+
+	<ul class="cards">
+	  <li class="card" style="view-transition-name: card-1; background-color: tan;">
+		<button class="delete-btn">
+		  <span class="sr-only">Delete</span>
+		</button>
+	  </li>
+	  <li class="card" style="view-transition-name: card-2; background-color: khaki;">
+		<button class="delete-btn">
+		  <span class="sr-only">Delete</span>
+		</button>
+	  </li>
+	  <li class="card" style="view-transition-name: card-3; background-color: thistle;">
+		<button class="delete-btn">
+		  <span class="sr-only">Delete</span>
+		</button>
+	  </li>
+	  <li class="card" style="view-transition-name: card-4; background-color: wheat;">
+		<button class="delete-btn">
+		  <span class="sr-only">Delete</span>
+		</button>
+	  </li>
+	</ul>
+
+	
+
+	
+        
+</body>
+<script>
+    // Core logic (without View Transitions)
+// Remove a card
+document.querySelector('.cards').addEventListener('click', e => {
+	if (e.target.classList.contains('delete-btn')) {
+			e.target.parentElement.remove();
+	}
+})
+
+// Add a card
+document.querySelector('.add-btn').addEventListener('click', async (e) => {
+	const template = document.getElementById('card');
+	const $newCard = template.content.cloneNode(true);
+	$newCard.firstElementChild.style.backgroundColor = `#${ Math.floor(Math.random()*16777215).toString(16)}`;
+	document.querySelector('.cards').appendChild($newCard);
+});
+
+// Set up automatic View Transitions using a MutationObserver
+// - A card got added
+//   ~> Undo the addition, and then re-added it wrapped in a VT
+// - A card got removed
+//   ~> Undo the removal, and then remove it wrapped in a VT
+if (document.startViewTransition) {
+	let isLocked = false;
+	const observer = new MutationObserver(async (mutations) => {
+		if (isLocked) return;
+
+		for (const mutation of mutations) {
+
+			// Card got added
+			if (mutation.addedNodes.length) {
+				const $li = Array.from(mutation.addedNodes).find(n => n.nodeName == 'LI');
+				if (!$li) return;
+
+				isLocked = true; // Prevent loops
+
+				// VT Customization
+				$li.style.viewTransitionName = 'targeted-card';
+
+				// Undo the addition, and then re-added it in a VT
+				$li.remove();
+				const t = document.startViewTransition(() => {
+					mutation.target.insertBefore($li, mutation.nextSibling);
+				});
+
+				await t.ready;
+				const rand = window.performance.now().toString().replace('.', '_') + Math.floor(Math.random() * 1000);
+				$li.style.viewTransitionName = `card-${rand}`;
+
+				isLocked = false;
+			}
+
+			// Card got removed
+			if (mutation.removedNodes.length) {
+				const $li = Array.from(mutation.removedNodes).find(n => n.nodeName == 'LI');
+				if (!$li) return;
+
+				isLocked = true; // Prevent loops
+
+				// VT Customization
+				$li.style.viewTransitionName = 'targeted-card';
+
+				// Re-add the node and then remove it in a VT
+				mutation.target.insertBefore($li, mutation.previousSibling);
+				const t = document.startViewTransition(() => {
+					$li.remove();
+				});
+
+				await t.ready;
+				isLocked = false;
+			}
+		}
+	});
+	observer.observe(document.querySelector('.cards'), {
+		childList: true,
+		characterData: false,
+	});
+}
+</script>
+</html>
